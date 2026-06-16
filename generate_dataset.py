@@ -18,51 +18,58 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from src.dataset import (
-    CLASS_NAMES, CLASS_GLYPHS, build_dataset, clean_params, render_shape,
-)
+from src.dataset import CLASS_NAMES, CLASS_GLYPHS, build_dataset
 
 OUTPUT_DIR = "outputs"
 
 
 def render_overview_pdf(images: np.ndarray, labels: np.ndarray,
-                        path: str, per_class: int = 12) -> None:
-    """One PDF page: for each class a clean glyph + a row of variants."""
+                        path: str, block_cols: int = 20) -> None:
+    """One PDF page showing *all* generated input images.
+
+    Every class is laid out as a contiguous block of all its variants
+    (``block_cols`` images per row), and the blocks are stacked vertically so
+    the full data set (e.g. 7 classes x 100 = 700 images) fits on a single page.
+    """
     n_classes = len(CLASS_NAMES)
-    cols = 1 + per_class  # first column = clean reference
-    fig, axes = plt.subplots(n_classes, cols,
-                             figsize=(cols * 0.85, n_classes * 0.95))
-    fig.suptitle("Obrazy wejściowe – figury konturowe 32×32 (grayscale 0–255)",
-                 fontsize=14, y=0.995)
+    per_class = int(np.bincount(labels).min())  # variants available per class
+    block_rows = int(np.ceil(per_class / block_cols))
+    total_rows = n_classes * block_rows
 
-    rng = np.random.default_rng(99)
-    cp = clean_params()
-    for row, name in enumerate(CLASS_NAMES):
-        # Column 0: clean reference rendering.
-        ref = render_shape(name, cp)
-        ax = axes[row, 0]
-        ax.imshow(ref, cmap="gray", vmin=0, vmax=255)
+    fig, axes = plt.subplots(
+        total_rows, block_cols,
+        figsize=(block_cols * 0.42, total_rows * 0.42),
+        squeeze=False,
+    )
+    fig.suptitle(
+        f"Obrazy wejściowe – figury konturowe 32×32 (grayscale 0–255)\n"
+        f"{n_classes} klas × {per_class} = {n_classes * per_class} obrazów "
+        f"(szum / przesunięcie / rozmycie / pochylenie)",
+        fontsize=11, y=0.997)
+
+    for ax in axes.ravel():
         ax.set_xticks([]); ax.set_yticks([])
-        for spine in ax.spines.values():
-            spine.set_color("tab:blue"); spine.set_linewidth(1.5)
-        ax.set_ylabel(f"{CLASS_GLYPHS[name]} {name}", fontsize=9,
-                      rotation=0, ha="right", va="center", labelpad=28)
-        if row == 0:
-            ax.set_title("wzorzec", fontsize=8)
+        ax.axis("off")
 
-        # Remaining columns: random augmented variants of this class.
-        idx = np.where(labels == row)[0]
-        pick = rng.choice(idx, size=per_class, replace=False)
-        for c, i in enumerate(pick, start=1):
-            ax = axes[row, c]
-            ax.imshow(images[i], cmap="gray", vmin=0, vmax=255)
+    for ci, name in enumerate(CLASS_NAMES):
+        idx = np.where(labels == ci)[0][:per_class]
+        for k, img_i in enumerate(idx):
+            r = ci * block_rows + k // block_cols
+            c = k % block_cols
+            ax = axes[r, c]
+            ax.axis("on")
+            ax.imshow(images[img_i], cmap="gray", vmin=0, vmax=255)
             ax.set_xticks([]); ax.set_yticks([])
-            if row == 0 and c == 1:
-                ax.set_title("warianty (zakłócenia / przesunięcie / rozmycie / pochylenie)",
-                             fontsize=8, loc="left")
+            for spine in ax.spines.values():
+                spine.set_linewidth(0.3); spine.set_color("0.8")
+        # Class label to the left of the block's first row.
+        label_ax = axes[ci * block_rows, 0]
+        label_ax.set_ylabel(f"{CLASS_GLYPHS[name]}  {name}", fontsize=10,
+                            rotation=0, ha="right", va="top", labelpad=12)
 
-    plt.tight_layout(rect=[0.04, 0.0, 1.0, 0.97])
-    fig.savefig(path, format="pdf", bbox_inches="tight")
+    plt.subplots_adjust(left=0.11, right=0.995, top=0.95, bottom=0.005,
+                        wspace=0.08, hspace=0.08)
+    fig.savefig(path, format="pdf")
     plt.close(fig)
 
 
