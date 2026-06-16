@@ -4,3 +4,4 @@ __pycache__/
 # Regenerated artifacts (recreated by the scripts)
 outputs/dataset.npz
 outputs/lenet5_shapes.pt
+outputs/svm_shapes.joblib

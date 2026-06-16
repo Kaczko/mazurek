@@ -30,9 +30,10 @@ renderowanych jako obrazy **32×32 piksele w skali szarości (0–255)**:
 src/dataset.py        rysowanie figur, augmentacje, budowa i podział zbioru
 src/model.py          definicja sieci LeNet-5
 generate_dataset.py   generuje zbiór (dataset.npz) i PDF z obrazami wejściowymi
-train_lenet5.py       trenuje sieć, rysuje krzywe uczenia i wyniki klasyfikacji
+train_lenet5.py       trenuje sieć LeNet-5, rysuje krzywe uczenia i wyniki klasyfikacji
+train_svm.py          to samo co train_lenet5.py, ale klasyfikator SVM (RBF)
 requirements.txt      zależności
-outputs/              wyniki (PDF, PNG, model)
+outputs/              wyniki (PDF, PNG, modele)
 ```
 
 ## Instalacja
@@ -48,12 +49,25 @@ pip install numpy pillow matplotlib
 # 1) wygeneruj zbiór danych (700 obrazów) + PDF z obrazami wejściowymi
 python generate_dataset.py
 
-# 2) wytrenuj LeNet-5 i wygeneruj krzywe uczenia oraz wyniki klasyfikacji
+# 2a) wariant z siecią neuronową LeNet-5
 python train_lenet5.py
+
+# 2b) wariant z klasyfikatorem SVM (RBF) – ten sam zbiór, podział i wykresy
+python train_svm.py
 ```
 
-Najważniejsze opcje: `--per-class` (domyślnie 100), `--epochs` (domyślnie 70),
-`--batch-size`, `--lr`, `--seed`.
+Najważniejsze opcje LeNet-5: `--per-class` (domyślnie 100), `--epochs`
+(domyślnie 70), `--batch-size`, `--lr`, `--seed`.
+Najważniejsze opcje SVM: `--per-class`, `--aug-copies` (domyślnie 8, liczba
+dodatkowych augmentowanych kopii obrazu uczącego), `--C`, `--gamma`, `--seed`.
+
+### LeNet-5 vs SVM
+
+Oba skrypty używają tego samego zbioru i podziału 50/50 oraz generują krzywe
+uczenia i te same demonstracje klasyfikacji (20 obrazów czystych + 20 z szumem).
+Różni je tylko klasyfikator. W krzywej uczenia SVM oś X to liczba próbek
+uczących (SVM nie ma epok). SVM (RBF) na spłaszczonych pikselach 32×32 osiąga tu
+ok. **83%** dokładności testowej.
 
 ## Pliki wynikowe (`outputs/`)
 
@@ -61,10 +75,14 @@ Najważniejsze opcje: `--per-class` (domyślnie 100), `--epochs` (domyślnie 70)
 |---|---|
 | `input_images.pdf` | jedna strona PDF z obrazami wejściowymi (wzorce + warianty) |
 | `learning_curves.png` | krzywe uczenia (strata i dokładność, train/test) |
-| `classification_clean.png` | 20 losowych obrazów z bazy + wynik klasyfikacji |
-| `classification_noisy.png` | 20 losowych obrazów z bazy z dodanym szumem + klasyfikacja |
+| `classification_clean.png` | 20 losowych obrazów z bazy + wynik klasyfikacji (LeNet-5) |
+| `classification_noisy.png` | 20 losowych obrazów z bazy z dodanym szumem + klasyfikacja (LeNet-5) |
+| `learning_curves_svm.png` | krzywe uczenia SVM (dokładność/błąd vs. liczba próbek) |
+| `classification_clean_svm.png` | 20 losowych obrazów z bazy + klasyfikacja (SVM) |
+| `classification_noisy_svm.png` | 20 losowych obrazów z bazy z szumem + klasyfikacja (SVM) |
 | `dataset.npz` | wygenerowany zbiór (regenerowalny) |
 | `lenet5_shapes.pt` | wagi wytrenowanej sieci (regenerowalne) |
+| `svm_shapes.joblib` | wytrenowany model SVM (regenerowalny) |
 
 ## Uwagi o wynikach
 
