@@ -58,16 +58,26 @@ python train_svm.py
 
 Najważniejsze opcje LeNet-5: `--per-class` (domyślnie 100), `--epochs`
 (domyślnie 70), `--batch-size`, `--lr`, `--seed`.
-Najważniejsze opcje SVM: `--per-class`, `--aug-copies` (domyślnie 8, liczba
-dodatkowych augmentowanych kopii obrazu uczącego), `--C`, `--gamma`, `--seed`.
+Najważniejsze opcje SVM: `--per-class`, `--aug-copies` (domyślnie 20, liczba
+dodatkowych augmentowanych kopii obrazu uczącego), `--kernel` (domyślnie
+`linear`), `--C` (domyślnie 0.01), `--gamma`, `--seed`.
 
 ### LeNet-5 vs SVM
 
 Oba skrypty używają tego samego zbioru i podziału 50/50 oraz generują krzywe
 uczenia i te same demonstracje klasyfikacji (20 obrazów czystych + 20 z szumem).
 Różni je tylko klasyfikator. W krzywej uczenia SVM oś X to liczba próbek
-uczących (SVM nie ma epok). SVM (RBF) na spłaszczonych pikselach 32×32 osiąga tu
-ok. **83%** dokładności testowej.
+uczących (SVM nie ma epok). W zbiorze uczącym SVM dokładana jest augmentacja
+(domyślnie 20 kopii na obraz) jako odpowiednik augmentacji on-the-fly z sieci.
+
+**Unikanie overfittingu.** Jądro RBF z dużym `C` na surowych pikselach (1024
+wymiary) szybko „zapamiętuje" mały zbiór uczący – dokładność uczenia przyklejona
+do 100%, duża luka train–test. Dlatego domyślny SVM to **jądro liniowe z silną
+regularizacją** (`C=0.01`) uczone na obficie augmentowanym zbiorze. Dzięki temu
+krzywa uczenia jest „zdrowa": linia train schodzi poniżej 1.0 i maleje, test
+rośnie, a obie krzywe się zbiegają (luka ~13 pp zamiast ~17 pp przy RBF). Test
+utrzymuje się na poziomie ok. **80%**. Jądro RBF nadal jest dostępne przez
+`--kernel rbf --C 10` (wyższy test ~83%, ale wyraźny overfitting train=100%).
 
 ## Pliki wynikowe (`outputs/`)
 

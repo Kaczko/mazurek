@@ -4,8 +4,15 @@ This is the SVM counterpart of ``train_lenet5.py``: it uses the exact same data
 set, the same 50% / 50% per-class split (no validation set), produces learning
 curves and the same classification demos (20 clean test images + 20 noisy
 ones).  The only difference is the classifier: instead of the LeNet-5 neural
-network it uses a Support Vector Machine (scikit-learn ``SVC`` with an RBF
-kernel) on the flattened 32x32 grayscale pixels.
+network it uses a Support Vector Machine (scikit-learn ``SVC``) on the flattened
+32x32 grayscale pixels.
+
+To avoid over-fitting a high-capacity RBF kernel quickly memorises the small,
+high-dimensional (1024-pixel) training set (train accuracy pinned at 100%), the
+default classifier is a **linear** SVM with strong regularisation (small ``C``)
+trained on a generously augmented training set.  This keeps the train/test gap
+small (train and test accuracy stay close, both well below the memorising
+regime).  The kernel and ``C`` are configurable via the CLI.
 
 Run (after generate_dataset.py, or it will build the data set on the fly):
     python train_svm.py
@@ -110,7 +117,7 @@ def compute_learning_curve(make_clf, Xtr, ytr, Xte, yte,
     return np.array(sizes), np.array(train_acc), np.array(test_acc)
 
 
-def plot_learning_curves(sizes, train_acc, test_acc, path):
+def plot_learning_curves(sizes, train_acc, test_acc, path, kernel="linear"):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4.6))
 
     ax1.plot(sizes, train_acc, "o-", label="uczenie (train)")
@@ -125,7 +132,9 @@ def plot_learning_curves(sizes, train_acc, test_acc, path):
     ax2.set_ylabel("błąd (1 - dokładność)")
     ax2.set_title("Krzywa uczenia – błąd"); ax2.legend(); ax2.grid(alpha=0.3)
 
-    fig.suptitle("SVM (RBF) – krzywe uczenia", fontsize=14)
+    gap = float(train_acc[-1] - test_acc[-1])
+    fig.suptitle(f"SVM ({kernel}) – krzywe uczenia "
+                 f"(luka train–test = {gap*100:.1f} pp)", fontsize=14)
     plt.tight_layout(rect=[0, 0, 1, 0.96])
     fig.savefig(path, dpi=130)
     plt.close(fig)
@@ -192,12 +201,17 @@ def plot_classification(clf, images, labels, path, title,
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--per-class", type=int, default=100)
-    parser.add_argument("--aug-copies", type=int, default=8,
+    parser.add_argument("--aug-copies", type=int, default=20,
                         help="augmented copies added per training image")
-    parser.add_argument("--C", type=float, default=10.0,
-                        help="SVM regularisation parameter")
+    parser.add_argument("--kernel", default="linear",
+                        choices=["linear", "rbf", "poly", "sigmoid"],
+                        help="SVM kernel (linear is the low-overfitting default)")
+    parser.add_argument("--C", type=float, default=0.01,
+                        help="SVM regularisation parameter (smaller = stronger "
+                             "regularisation / less over-fitting)")
     parser.add_argument("--gamma", default="scale",
-                        help="RBF kernel coefficient (float or 'scale'/'auto')")
+                        help="kernel coefficient for rbf/poly/sigmoid "
+                             "(float or 'scale'/'auto')")
     parser.add_argument("--seed", type=int, default=1234)
     parser.add_argument("--output-dir", default=OUTPUT_DIR)
     args = parser.parse_args()
@@ -234,11 +248,11 @@ def main() -> None:
     def make_clf():
         return make_pipeline(
             StandardScaler(),
-            SVC(kernel="rbf", C=args.C, gamma=gamma,
+            SVC(kernel=args.kernel, C=args.C, gamma=gamma,
                 decision_function_shape="ovr", random_state=args.seed),
         )
 
-    print("Training SVM (RBF kernel)...")
+    print(f"Training SVM ({args.kernel} kernel, C={args.C})...")
     clf = make_clf()
     clf.fit(Xtr, ytr_aug)
     train_acc = clf.score(Xtr, ytr_aug)
@@ -252,7 +266,8 @@ def main() -> None:
         make_clf, Xtr, ytr_aug, Xte, yte, fractions, seed=args.seed)
     plot_learning_curves(
         sizes, tr_curve, te_curve,
-        os.path.join(args.output_dir, "learning_curves_svm.png"))
+        os.path.join(args.output_dir, "learning_curves_svm.png"),
+        kernel=args.kernel)
 
     # Classification demos.
     plot_classification(
